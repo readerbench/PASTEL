@@ -1,1 +1,1 @@
-# PASTEL
+# Paraphrase ASsessment using TransfEr Learning
