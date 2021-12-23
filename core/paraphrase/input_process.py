@@ -42,7 +42,7 @@ def read_and_process_adults():
 
 
 def read_and_process_children():
-    doc1 = pd.read_excel(f"{DATA_FOLDER}children_v3.xlsx")
+    doc1 = pd.read_excel(f"{DATA_FOLDER}children.xlsx")
     doc_mod = doc1[["Original Sentence", "Cleaned Submissions",
                     "Garbage", "Irrelevant",
                     "LexicalSimilarity", "SyntacticSimilarity", "SemanticSimilarity",
@@ -73,7 +73,7 @@ def read_and_process_msrp():
 
 
 def read_and_process_ULPC():
-    doc1 = pd.read_excel(f"{DATA_FOLDER}Public_Paraphrase_Challenge(excel).xls")
+    doc1 = pd.read_excel(f"{DATA_FOLDER}ULPC.xls")
     doc_mod = doc1[["Index", "Clean_Target_Sentence", "Clean_Utterance",
                     "Garbage_content_bin", "Irrelevant_bin",
                     "Paraphrase_Quality", "Paraphrase_quality_bin", "Paraphrase_quality_tri",

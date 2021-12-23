@@ -11,7 +11,7 @@ from utils import get_words
 DATA_FOLDER = "../../data/"
 RESULTS_FOLDER = "../../data/results/"
 
-doc1 = pd.read_excel(f'{DATA_FOLDER}Public_Paraphrase_Challenge(excel).xls')
+doc1 = pd.read_excel(f'{DATA_FOLDER}ULPC.xls')
 doc2 = pd.read_csv(f'{RESULTS_FOLDER}results_paraphrase_train_data.csv', encoding='latin1', sep='\t')
 
 print(len(doc1))
