@@ -42,10 +42,12 @@ class BERTMTL(pl.LightningModule):
     loss_f = nn.CrossEntropyLoss()
     partial_losses = [0 for _ in range(self.num_tasks)]
 
+    transp_targets = targets.transpose(1, 0)
     for task_id in range(self.num_tasks):
-      for batch_id in range(len(targets)):
-        if targets[batch_id][task_id] != 9:
-          partial_losses[task_id] += loss_f(outputs[task_id][batch_id], targets[batch_id][task_id])
+      task_mask = transp_targets[task_id] != 9
+      partial_losses[task_id] += loss_f(outputs[task_id][task_mask], transp_targets[task_id][task_mask])
+      if self.task_names[task_id] == "overall":
+        partial_losses[task_id] *= 6
     loss = sum(partial_losses)
 
     # Logging to TensorBoard by default
@@ -64,13 +66,13 @@ class BERTMTL(pl.LightningModule):
     loss_f = nn.CrossEntropyLoss()
     partial_losses = [0 for _ in range(self.num_tasks)]
 
+    transp_targets = targets.transpose(1, 0)
     for task_id in range(self.num_tasks):
-      for batch_id in range(len(targets)):
-        if targets[batch_id][task_id] != 9:
-          partial_losses[task_id] += loss_f(outputs[task_id][batch_id], targets[batch_id][task_id])
+      task_mask = transp_targets[task_id] != 9
+      partial_losses[task_id] += loss_f(outputs[task_id][task_mask], transp_targets[task_id][task_mask])
     loss = sum(partial_losses)
 
-    out_targets = targets.transpose(1, 0).cpu()
+    out_targets = transp_targets.cpu()
     out_outputs = torch.Tensor([[y.argmax() for y in x] for x in outputs]).cpu()
     # Logging to TensorBoard by default
     self.log("val_loss", loss)

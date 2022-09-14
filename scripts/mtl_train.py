@@ -12,7 +12,7 @@ num_tasks = 7
 predefined_version = ""
 PRE_TRAINED_MODEL_NAME = 'bert-base-cased'
 MAX_LEN_P = 80
-BATCH_SIZE = 16
+BATCH_SIZE = 64
 tokenizer = BertTokenizer.from_pretrained(PRE_TRAINED_MODEL_NAME)
 
 self_explanations = SelfExplanations()
@@ -28,8 +28,8 @@ train_data_loader = create_data_loader(df_train, tokenizer, MAX_LEN_P, BATCH_SIZ
 val_data_loader = create_data_loader(df_test, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks)
 model = BERTMTL(num_tasks, PRE_TRAINED_MODEL_NAME)
 trainer = pl.Trainer(
-    # accelerator="auto",
-    # devices=1 if torch.cuda.is_available() else None,  # limiting got iPython runs
-    limit_train_batches=100,
+    accelerator="auto",
+    devices=1 if torch.cuda.is_available() else None,  # limiting got iPython runs
+    # limit_train_batches=100,
     max_epochs=50)
 trainer.fit(model, train_dataloaders=train_data_loader, val_dataloaders=val_data_loader)
