@@ -1,4 +1,3 @@
-import pickle
 import random
 
 from sklearn.metrics import f1_score, classification_report
@@ -10,8 +9,8 @@ import pandas as pd
 from torch import nn
 
 from core.models.bert.classifier import BERTClassifier
-from core.models.bert.p_dataset import create_data_loader
-from core.paraphrase.utils import seed_everything
+from core.data_processing.p_dataset import create_data_loader
+from core.utils.utils import seed_everything
 
 
 DATA_FOLDER = "../../data/"

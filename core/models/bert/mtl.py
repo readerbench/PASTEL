@@ -7,7 +7,7 @@ from torch.nn import functional as F
 from torch.nn import ModuleList
 from torchmetrics import F1Score, Accuracy
 
-from core.models.bert.se_dataset import SelfExplanations
+from core.data_processing.se_dataset import SelfExplanations
 
 class BERTMTL(pl.LightningModule):
   def __init__(self, num_tasks, pretrained_bert_model):

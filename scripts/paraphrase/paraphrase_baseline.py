@@ -1,12 +1,5 @@
-import pickle
-
 import pandas as pd
-from sklearn.metrics import classification_report, f1_score
-import numpy as np
-
-from core.utils.rcdoc import create_doc
-from utils import get_words
-
+from sklearn.metrics import f1_score
 
 DATA_FOLDER = "../../data/"
 RESULTS_FOLDER = "../../data/results/"

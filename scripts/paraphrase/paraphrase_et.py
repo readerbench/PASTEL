@@ -3,12 +3,11 @@ import warnings
 import pandas as pd
 
 from sklearn.ensemble import ExtraTreesClassifier
-from sklearn.metrics import classification_report, confusion_matrix
-from sklearn.model_selection import KFold
+from sklearn.metrics import classification_report
 import sklearn
 import numpy as np
 
-from core.paraphrase.utils import seed_everything
+from core.utils.utils import seed_everything
 
 warnings.filterwarnings("ignore")
 

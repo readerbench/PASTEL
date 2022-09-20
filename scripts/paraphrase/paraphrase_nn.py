@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-from core.paraphrase.utils import build_tokenizer, seed_everything
+from core.utils.utils import build_tokenizer, seed_everything
 from core.models.rnn.rnn_classifier import Collator, \
     NeuralNet, train_model, test_model
 from core.models.rnn.rnn_classifier import TextDataset

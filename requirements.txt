@@ -6,3 +6,9 @@ pandas
 tensorflow
 keras
 sklearn
+xgboost
+distance
+pytorch_lightning
+seaborn
+rbpy-rb
+transformers
