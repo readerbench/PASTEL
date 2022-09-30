@@ -10,25 +10,34 @@ from torchmetrics import F1Score, Accuracy
 from core.data_processing.se_dataset import SelfExplanations
 
 class BERTMTL(pl.LightningModule):
-  def __init__(self, num_tasks, pretrained_bert_model):
+  def __init__(self, num_tasks, pretrained_bert_model, rb_feats=0):
     super().__init__()
     self.bert = BertModel.from_pretrained(pretrained_bert_model, return_dict=False)
     self.drop = nn.Dropout(p=0.2)
     self.tmp1 = nn.Linear(self.bert.config.hidden_size, 100)
-    self.tmp2 = nn.Linear(100, 100)
     self.task_names = SelfExplanations.MTL_TARGETS[:num_tasks]
     task_classes = [SelfExplanations.MTL_CLASS_DICT[x] for x in self.task_names]
     self.num_tasks = num_tasks
-    self.out = ModuleList([nn.Linear(100, task_classes[i]) for i in range(num_tasks)])
 
-  def forward(self, input_ids, attention_mask):
+    self.rb_feats = rb_feats
+    if self.rb_feats > 0:
+      self.rb_feats_in = nn.Linear(self.rb_feats, 100)
+      self.out = ModuleList([nn.Linear(200, task_classes[i]) for i in range(num_tasks)])
+    else:
+      self.out = ModuleList([nn.Linear(100, task_classes[i]) for i in range(num_tasks)])
+
+  def forward(self, input_ids, attention_mask, rb_feats_data=None):
     _, pooled_output = self.bert(
       input_ids=input_ids,
       attention_mask=attention_mask
     )
     x = self.drop(pooled_output)
     x = F.tanh(self.tmp1(x))
-    # x = F.tanh(self.tmp2(x))
+    
+    if self.rb_feats > 0:
+      feats = F.tanh(self.rb_feats_in(rb_feats_data))
+      x = F.tanh(torch.cat([feats, x], dim=1))
+
     x = [F.softmax(f(x)) for f in self.out]
 
     return x
@@ -37,8 +46,11 @@ class BERTMTL(pl.LightningModule):
     input_ids = batch['input_ids']
     attention_mask = batch['attention_mask']
     targets = batch['targets']
-
-    outputs = self(input_ids, attention_mask)
+    if self.rb_feats > 0:
+      rb_feats_data = batch['rb_feats'].to(torch.float32)
+      outputs = self(input_ids, attention_mask, rb_feats_data)
+    else:
+      outputs = self(input_ids, attention_mask)
     loss_f = nn.CrossEntropyLoss()
     partial_losses = [0 for _ in range(self.num_tasks)]
 
@@ -61,8 +73,11 @@ class BERTMTL(pl.LightningModule):
     input_ids = batch['input_ids']
     attention_mask = batch['attention_mask']
     targets = batch['targets']
-
-    outputs = self(input_ids, attention_mask)
+    if self.rb_feats > 0:
+      rb_feats_data = batch['rb_feats'].to(torch.float32)
+      outputs = self(input_ids, attention_mask, rb_feats_data)
+    else:
+      outputs = self(input_ids, attention_mask)
     loss_f = nn.CrossEntropyLoss()
     partial_losses = [0 for _ in range(self.num_tasks)]
 

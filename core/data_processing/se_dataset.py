@@ -92,12 +92,13 @@ class SelfExplanations:
 
 
 class SEDataset(Dataset):
-  def __init__(self, source, production, targets, tokenizer, max_len):
+  def __init__(self, source, production, targets, tokenizer, max_len, rb_feats=None):
     self.source = source
     self.production = production
     self.targets = targets
     self.tokenizer = tokenizer
     self.max_len = max_len
+    self.rb_feats = rb_feats.astype(float) if rb_feats is not None else None
 
     self.targets[self.targets == 'BLANK '] = 9
     self.targets[self.targets == 'BLANK'] = 9
@@ -111,6 +112,7 @@ class SEDataset(Dataset):
     source = str(self.source[item])
     production = str(self.production[item])
     target = self.targets[item]
+    rb_feats = self.rb_feats[item] if self.rb_feats is not None else []
 
     encoding = self.tokenizer.encode_plus(
       text=source,
@@ -128,17 +130,21 @@ class SEDataset(Dataset):
     return {
       'text_s': source,
       'text_p': production,
+      'rb_feats': rb_feats,
       'input_ids': encoding['input_ids'].flatten(),
       'attention_mask': encoding['attention_mask'].flatten(),
       'targets': torch.LongTensor(target),
       'item': item
     }
 
-def create_data_loader(df, tokenizer, max_len, batch_size, num_tasks):
+def create_data_loader(df, tokenizer, max_len, batch_size, num_tasks, use_rb_feats=False):
   targets = SelfExplanations.MTL_TARGETS[:num_tasks]
+  feats = df[df.columns[38:]].to_numpy() if use_rb_feats else None
+
   ds = SEDataset(
-    source=df[SelfExplanations.SE].to_numpy(),
-    production=df[SelfExplanations.TARGET_SENTENCE].to_numpy(),
+    source=df['Source'].to_numpy(),
+    production=df['Production'].to_numpy(),
+    rb_feats=feats,
     targets=np.array([df[t] for t in targets]).transpose(),
     tokenizer=tokenizer,
     max_len=max_len

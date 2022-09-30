@@ -6,10 +6,10 @@ from xgboost import XGBClassifier
 from core.data_processing.se_dataset import SelfExplanations
 from scripts.mtl.mtl_bert_train import get_train_test_IDs
 
-file2 = "/home/bogdan/projects/PASTEL/data/results/results_paraphrase_se_aggregated_dataset_withprev_v2_v3.csv"
-file = "/data/results/results_paraphrase_se_aggregated_dataset_v2_v3.csv"
+file2 = "../data/results/results_paraphrase_se_aggregated_dataset_withprev_v2.csv"
+file = "../data/results/results_paraphrase_se_aggregated_dataset_v2.csv"
 
-df = pd.read_csv(file2, delimiter=',')
+df = pd.read_csv(file, delimiter=',')
 
 feature_columns = df.columns.tolist()[39:]
 

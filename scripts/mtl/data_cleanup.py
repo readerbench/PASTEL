@@ -34,8 +34,6 @@ def clean_csv(file):
     print(f"Removed {removable_cols} because of datatype issues")
     df = df.drop(columns=removable_cols)
 
-    feature_columns = df.columns.tolist()[39:]
-
     df.to_csv(f"{file[:-4]}_v2.csv")
     return df
 

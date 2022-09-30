@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split
 transformers.logging.set_verbosity_error()
 
 def get_train_test_IDs(IDs):
-    ID_file = "/data/mtl/se_ID_file.txt"
+    ID_file = "../data/mtl/se_ID_file.txt"
 
     if os.path.exists(ID_file):
         train_line, test_line = open(ID_file, "r").readlines()
@@ -36,17 +36,20 @@ if __name__ == '__main__':
     tokenizer = BertTokenizer.from_pretrained(PRE_TRAINED_MODEL_NAME)
 
     self_explanations = SelfExplanations()
+    # target_sent_enhanced = self_explanations.parse_se_from_csv(
+    #     "../data/results/results_paraphrase_se_aggregated_dataset_v2.csv")
     target_sent_enhanced = self_explanations.parse_se_from_csv(
-        "/home/bogdan/projects/self-explanations/git_resources/new_english_se2_enhanced.csv")
+        "../data/results/results_paraphrase_se_aggregated_dataset_v2.csv")
 
     IDs = self_explanations.df['ID'].unique().tolist()
     train_IDs, test_IDs = get_train_test_IDs(IDs)
     df_train = self_explanations.df[self_explanations.df['ID'].isin(train_IDs)]
     df_test = self_explanations.df[self_explanations.df['ID'].isin(test_IDs)]
 
-    train_data_loader = create_data_loader(df_train, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks)
-    val_data_loader = create_data_loader(df_test, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks)
-    model = BERTMTL(num_tasks, PRE_TRAINED_MODEL_NAME)
+    train_data_loader = create_data_loader(df_train, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=True)
+    val_data_loader = create_data_loader(df_test, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=True)
+    model = BERTMTL(num_tasks, PRE_TRAINED_MODEL_NAME, rb_feats=train_data_loader.dataset.rb_feats.shape[1])
+    # print("feats", train_data_loader.dataset.rb_feats.shape[1])
     trainer = pl.Trainer(
         accelerator="auto",
         devices=1 if torch.cuda.is_available() else None,  # limiting got iPython runs
