@@ -49,7 +49,7 @@ if __name__ == '__main__':
     train_data_loader = create_data_loader(df_train, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=True)
     val_data_loader = create_data_loader(df_test, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=True)
     model = BERTMTL(num_tasks, PRE_TRAINED_MODEL_NAME, rb_feats=train_data_loader.dataset.rb_feats.shape[1])
-    # print("feats", train_data_loader.dataset.rb_feats.shape[1])
+
     trainer = pl.Trainer(
         accelerator="auto",
         devices=1 if torch.cuda.is_available() else None,  # limiting got iPython runs
