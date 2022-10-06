@@ -41,14 +41,29 @@ if __name__ == '__main__':
     target_sent_enhanced = self_explanations.parse_se_from_csv(
         "../data/results/results_paraphrase_se_aggregated_dataset_v2.csv")
 
-    IDs = self_explanations.df['ID'].unique().tolist()
-    train_IDs, test_IDs = get_train_test_IDs(IDs)
-    df_train = self_explanations.df[self_explanations.df['ID'].isin(train_IDs)]
-    df_test = self_explanations.df[self_explanations.df['ID'].isin(test_IDs)]
+    text_list = self_explanations.df['TextID'].unique().tolist()
+    # text_list = ['ASU 1 - HD', 'ASU 1 - RBC', 'ASU 4 - NS 1', 'ASU 5 - CD', 'ASU 5 - HD', 'CRaK - CD', 'NIU 1 - 320', 'NIU 1 - 321', 'NIU 1 - 337', 'NIU 1 - 338 ']
+    dev_mask = self_explanations.df['TextID'].isin(text_list[:2])
+    test_mask = self_explanations.df['TextID'].isin(text_list[2:3])
+    train_mask = self_explanations.df['TextID'].isin(text_list[3:])
 
-    train_data_loader = create_data_loader(df_train, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=True)
-    val_data_loader = create_data_loader(df_test, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=True)
-    model = BERTMTL(num_tasks, PRE_TRAINED_MODEL_NAME, rb_feats=train_data_loader.dataset.rb_feats.shape[1])
+    # old split
+    df_train = self_explanations.df[train_mask]
+    df_dev = self_explanations.df[dev_mask]
+    df_test = self_explanations.df[test_mask]
+
+    # random deterministic split
+    # IDs = self_explanations.df['ID'].unique().tolist()
+    # train_IDs, test_IDs = get_train_test_IDs(IDs)
+    # df_train = self_explanations.df[self_explanations.df['ID'].isin(train_IDs)]
+    # df_test = self_explanations.df[self_explanations.df['ID'].isin(test_IDs)]
+
+    # toggle 0 or 1 for using rb_features
+    rb_feats = 0
+    train_data_loader = create_data_loader(df_train, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=(rb_feats == 0))
+    val_data_loader = create_data_loader(df_test, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=(rb_feats == 0))
+    rb_feats = train_data_loader.dataset.rb_feats.shape[1]
+    model = BERTMTL(num_tasks, PRE_TRAINED_MODEL_NAME, rb_feats=rb_feats)
 
     trainer = pl.Trainer(
         accelerator="auto",
