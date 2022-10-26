@@ -78,6 +78,8 @@ class SelfExplanations:
   def parse_se_from_csv(self, path_to_csv_file: str):
     df = pandas.read_csv(path_to_csv_file, delimiter=',', dtype={self.SENT_NO: "Int64"}).dropna(how='all')
     self.df = df
+    self.df['Production'] = self.df['SelfExplanation']
+    self.df['Source'] = self.df['TargetSentence']
     for val in self.MTL_TARGETS:
 
       self.df[val][self.df[val] == 'BLANK '] = 9

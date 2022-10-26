@@ -39,7 +39,7 @@ if __name__ == '__main__':
     # target_sent_enhanced = self_explanations.parse_se_from_csv(
     #     "../data/results/results_paraphrase_se_aggregated_dataset_v2.csv")
     target_sent_enhanced = self_explanations.parse_se_from_csv(
-        "../data/results/results_paraphrase_se_aggregated_dataset_v2.csv")
+        "new_english_se2_enhanced.csv")
 
     text_list = self_explanations.df['TextID'].unique().tolist()
     # text_list = ['ASU 1 - HD', 'ASU 1 - RBC', 'ASU 4 - NS 1', 'ASU 5 - CD', 'ASU 5 - HD', 'CRaK - CD', 'NIU 1 - 320', 'NIU 1 - 321', 'NIU 1 - 337', 'NIU 1 - 338 ']
