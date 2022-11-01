@@ -74,8 +74,11 @@ def read_and_process_msrp():
     return results
 
 def read_and_process_se():
-    file = "/home/bogdan/projects/self-explanations/git_resources/new_english_se2_enhanced.csv"
-    df = pandas.read_csv(file, delimiter=',', dtype={"SentNo": "Int64"}).dropna(how='all')
+    # file = "/home/bogdan/projects/self-explanations/git_resources/new_english_se2_enhanced.csv"
+    # df = pandas.read_csv(file, delimiter=',', dtype={"SentNo": "Int64"}).dropna(how='all')
+
+    file = "/home/bogdan/projects/PASTEL/data/mtl/CR_all.columns_10.17.22_enhanced.xlsx"
+    df = pandas.read_excel(file)
 
     df['source'] = df[SelfExplanations.TARGET_SENTENCE]
     df['paraphrase'] = df[SelfExplanations.SE]
@@ -124,6 +127,7 @@ def write_dataset_header(f, dataset):
                 "\ttrn_test_val")
     elif dataset == "se_aggregated_dataset":
         fields = ["Dataset", "Pop.og", "Pop", "Prod.from", "Proto", "Condition.training", "Condition", "ID.og", "ID", "iSTARTorWPal", "Pretext", "TextIDcount", "Cohort", "School", "Dev", "Domain", "Text", "TextID", "SentNo", "SelfExplanation", "tooshort", "irrelevant", "copypaste", "evaluativestatements", "misconception", "monitoring", "paraphrasepresence", "lexicalchange", "syntacticchange", "bridgepresence", "bridgecontribution", "elaborationpresence", "lifeevent", "overall", "TargetSentence", "PreviousSentence"]
+        fields = ["Dataset", "Pop.og", "Pop", "Prod.from", "Proto", "Condition.training", "Condition", "ID.og", "ID", "iSTARTorWPal", "Pretext", "TextID.count", "Cohort", "School", "Dev", "Domain", "Text", "TextID", "SentNo", "SelfExplanation", "tooshort", "irrelevant", "copypaste", "evaluativestatements", "misconception", "monitoring", "paraphrasepresence", "lexicalchange", "syntacticchange", "bridgepresence", "bridgecontribution", "elaborationpresence", "lifeevent", "overall", "irre_2", "copy_2", "eval_2", "toos_di", "irre_di", "copy_di", "eval_di", "misc_di", "moni_di", "para_", "brip_", "elab_", "para_di", "brip_di", "elab_di", "over_", "over_correct", "over_0", "over_1", "over_2", "over_3", "combocode", "combostring", "combo", "para_only", "brip_only", "elab_only", "para_brip", "para_elap", "brip_elap", "all_", "none_", "comboquality", "comboquality_descript", "poor_none", "fair_none", "good_none", "great_none", "poor_para", "fair_para", "good_para", "great_para", "poor_brip", "fair_brip", "good_brip", "great_brip", "poor_elap", "fair_elap", "good_elap", "great_elap", "poor_parabrip", "fair_parabrip", "good_parabrip", "great_parabrip", "poor_paraelab", "fair_paraelab", "good_paraelab", "great_paraelab", "poor_bripelab", "fair_bripelab", "good_bripelab", "great_bripelab", "poor_all", "fair_all", "good_all", "great_all", "over0_filter", "over0_filtdesc", "none_0", "toos_0", "irre_0", "copy_0", "eval_0", "Training", "TextID.pre", "PrePost", "TargetSentence", "PreviousSentence"]
         f.write(f"Source\tProduction")
         for field in fields:
             f.write(f"\t{field}")
@@ -157,6 +161,22 @@ def write_dataset_info(f, dataset, doc, source, prod):
             f.write(f"{doc[field]}\t")
     elif dataset == "se_aggregated_dataset":
         fields = ["Dataset", "Pop.og", "Pop", "Prod.from", "Proto", "Condition.training", "Condition", "ID.og", "ID", "iSTARTorWPal", "Pretext", "TextIDcount", "Cohort", "School", "Dev", "Domain", "Text", "TextID", "SentNo", "SelfExplanation", "tooshort", "irrelevant", "copypaste", "evaluativestatements", "misconception", "monitoring", "paraphrasepresence", "lexicalchange", "syntacticchange", "bridgepresence", "bridgecontribution", "elaborationpresence", "lifeevent", "overall", "TargetSentence", "PreviousSentence"]
+        fields = ["Dataset", "Pop.og", "Pop", "Prod.from", "Proto", "Condition.training", "Condition", "ID.og", "ID",
+                  "iSTARTorWPal", "Pretext", "TextID.count", "Cohort", "School", "Dev", "Domain", "Text", "TextID",
+                  "SentNo", "SelfExplanation", "tooshort", "irrelevant", "copypaste", "evaluativestatements",
+                  "misconception", "monitoring", "paraphrasepresence", "lexicalchange", "syntacticchange",
+                  "bridgepresence", "bridgecontribution", "elaborationpresence", "lifeevent", "overall", "irre_2",
+                  "copy_2", "eval_2", "toos_di", "irre_di", "copy_di", "eval_di", "misc_di", "moni_di", "para_",
+                  "brip_", "elab_", "para_di", "brip_di", "elab_di", "over_", "over_correct", "over_0", "over_1",
+                  "over_2", "over_3", "combocode", "combostring", "combo", "para_only", "brip_only", "elab_only",
+                  "para_brip", "para_elap", "brip_elap", "all_", "none_", "comboquality", "comboquality_descript",
+                  "poor_none", "fair_none", "good_none", "great_none", "poor_para", "fair_para", "good_para",
+                  "great_para", "poor_brip", "fair_brip", "good_brip", "great_brip", "poor_elap", "fair_elap",
+                  "good_elap", "great_elap", "poor_parabrip", "fair_parabrip", "good_parabrip", "great_parabrip",
+                  "poor_paraelab", "fair_paraelab", "good_paraelab", "great_paraelab", "poor_bripelab", "fair_bripelab",
+                  "good_bripelab", "great_bripelab", "poor_all", "fair_all", "good_all", "great_all", "over0_filter",
+                  "over0_filtdesc", "none_0", "toos_0", "irre_0", "copy_0", "eval_0", "Training", "TextID.pre",
+                  "PrePost", "TargetSentence", "PreviousSentence"]
         f.write(f"{source}\t{prod}\t")
         for field in fields:
             f.write(f"{doc[field]}\t")
@@ -201,9 +221,9 @@ def process_dataset(dataset, use_prev_sentence=False):
     combined_indices_list = []
     overlap_list = []
     if use_prev_sentence:
-        filename = f"{RESULTS_FOLDER}results_paraphrase_{dataset}_withprev.csv"
+        filename = f"{RESULTS_FOLDER}results_paraphrase_{dataset}_withprev_2.csv"
     else:
-        filename = f"{RESULTS_FOLDER}results_paraphrase_{dataset}.csv"
+        filename = f"{RESULTS_FOLDER}results_paraphrase_{dataset}_2.csv"
 
     f = open(filename, "w")
     i = 0

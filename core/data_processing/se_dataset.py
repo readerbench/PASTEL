@@ -76,7 +76,7 @@ class SelfExplanations:
 
 
   def parse_se_from_csv(self, path_to_csv_file: str):
-    df = pandas.read_csv(path_to_csv_file, delimiter=',', dtype={self.SENT_NO: "Int64"}).dropna(how='all')
+    df = pandas.read_csv(path_to_csv_file, delimiter='\t', dtype={self.SENT_NO: "Int64"}).dropna(how='all')
     self.df = df
     for val in self.MTL_TARGETS:
 
@@ -98,6 +98,8 @@ class SEDataset(Dataset):
     self.targets = targets
     self.tokenizer = tokenizer
     self.max_len = max_len
+    # rb_feats[rb_feats == 'None'] = 0
+    # rb_feats[rb_feats == 'True'] = 1
     self.rb_feats = rb_feats.astype(float) if rb_feats is not None else None
 
     self.targets[self.targets == 'BLANK '] = 9
@@ -139,7 +141,7 @@ class SEDataset(Dataset):
 
 def create_data_loader(df, tokenizer, max_len, batch_size, num_tasks, use_rb_feats=False):
   targets = SelfExplanations.MTL_TARGETS[:num_tasks]
-  feats = df[df.columns[38:]].to_numpy() if use_rb_feats else None
+  feats = df[df.columns[114:-1]].to_numpy() if use_rb_feats else None
 
   ds = SEDataset(
     source=df['Source'].to_numpy(),

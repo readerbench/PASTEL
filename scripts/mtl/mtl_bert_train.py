@@ -27,6 +27,26 @@ def get_train_test_IDs(IDs):
 
     return train_IDs, test_IDs
 
+def map_train_test(x):
+    if x['Dataset'] in ['NIU 1', 'ASU 5']:
+        return 'train'
+    if x['Dataset'] == 'NIU 3':
+        return 'dev'
+    if x['Dataset'] == 'ASU 1':
+        if x['PrePost'] == 'post':
+            return 'train'
+        return 'dev'
+    if x['Dataset'] == 'ASU 4' and not str(x['ID']).startswith('ISTARTREF'):
+        return 'train'
+    print(x['Dataset'], x['ID'])
+    return 'test'
+
+def get_new_train_test_split(df):
+    df['EntryType'] = df.apply(lambda x: map_train_test(x), axis=1)
+    df = df[df[SelfExplanations.OVERALL] > 0]
+    # df[SelfExplanations.OVERALL] -= 1
+    return df[df['EntryType'] == 'train'], df[df['EntryType'] == 'dev'], df[df['EntryType'] == 'test']
+
 if __name__ == '__main__':
     num_tasks = 7
     predefined_version = ""
@@ -39,7 +59,7 @@ if __name__ == '__main__':
     # target_sent_enhanced = self_explanations.parse_se_from_csv(
     #     "../data/results/results_paraphrase_se_aggregated_dataset_v2.csv")
     target_sent_enhanced = self_explanations.parse_se_from_csv(
-        "../data/results/results_paraphrase_se_aggregated_dataset_v2.csv")
+        "/home/bogdan/projects/PASTEL/data/results/results_paraphrase_se_aggregated_dataset_2.csv")
 
     text_list = self_explanations.df['TextID'].unique().tolist()
     # text_list = ['ASU 1 - HD', 'ASU 1 - RBC', 'ASU 4 - NS 1', 'ASU 5 - CD', 'ASU 5 - HD', 'CRaK - CD', 'NIU 1 - 320', 'NIU 1 - 321', 'NIU 1 - 337', 'NIU 1 - 338 ']
@@ -52,6 +72,7 @@ if __name__ == '__main__':
     df_dev = self_explanations.df[dev_mask]
     df_test = self_explanations.df[test_mask]
 
+    df_train, df_dev, df_test = get_new_train_test_split(self_explanations.df)
     # random deterministic split
     # IDs = self_explanations.df['ID'].unique().tolist()
     # train_IDs, test_IDs = get_train_test_IDs(IDs)
@@ -60,9 +81,9 @@ if __name__ == '__main__':
 
     # toggle 0 or 1 for using rb_features
     rb_feats = 0
-    train_data_loader = create_data_loader(df_train, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=(rb_feats == 0))
-    val_data_loader = create_data_loader(df_test, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=(rb_feats == 0))
-    rb_feats = train_data_loader.dataset.rb_feats.shape[1]
+    train_data_loader = create_data_loader(df_train, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=False)
+    val_data_loader = create_data_loader(df_test, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=False)
+    rb_feats = 0#train_data_loader.dataset.rb_feats.shape[1]
     model = BERTMTL(num_tasks, PRE_TRAINED_MODEL_NAME, rb_feats=rb_feats)
 
     trainer = pl.Trainer(
