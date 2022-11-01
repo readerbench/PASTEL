@@ -12,3 +12,4 @@ pytorch_lightning
 seaborn
 rbpy-rb
 transformers
+pytorch-lightning
