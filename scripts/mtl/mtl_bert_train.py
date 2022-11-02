@@ -38,39 +38,28 @@ def map_train_test(x):
         return 'dev'
     if x['Dataset'] == 'ASU 4' and not str(x['ID']).startswith('ISTARTREF'):
         return 'train'
-    print(x['Dataset'], x['ID'])
     return 'test'
 
 def get_new_train_test_split(df):
     df['EntryType'] = df.apply(lambda x: map_train_test(x), axis=1)
-    df = df[df[SelfExplanations.OVERALL] > 0]
-    # df[SelfExplanations.OVERALL] -= 1
+    df = df[(df[SelfExplanations.OVERALL] > 0) & (df[SelfExplanations.OVERALL] < 9)]
+    df[SelfExplanations.OVERALL] -= 1
     return df[df['EntryType'] == 'train'], df[df['EntryType'] == 'dev'], df[df['EntryType'] == 'test']
 
-if __name__ == '__main__':
-    num_tasks = 7
+def experiment(task_level_weights=[]):
+    num_tasks = 4
     predefined_version = ""
     PRE_TRAINED_MODEL_NAME = 'bert-base-cased'
     MAX_LEN_P = 80
-    BATCH_SIZE = 64
+    BATCH_SIZE = 128
     tokenizer = BertTokenizer.from_pretrained(PRE_TRAINED_MODEL_NAME)
 
     self_explanations = SelfExplanations()
     # target_sent_enhanced = self_explanations.parse_se_from_csv(
     #     "../data/results/results_paraphrase_se_aggregated_dataset_v2.csv")
     target_sent_enhanced = self_explanations.parse_se_from_csv(
-        "/home/bogdan/projects/PASTEL/data/results/results_paraphrase_se_aggregated_dataset_2.csv")
+        "../../data/results_paraphrase_se_aggregated_dataset_2.csv")
 
-    text_list = self_explanations.df['TextID'].unique().tolist()
-    # text_list = ['ASU 1 - HD', 'ASU 1 - RBC', 'ASU 4 - NS 1', 'ASU 5 - CD', 'ASU 5 - HD', 'CRaK - CD', 'NIU 1 - 320', 'NIU 1 - 321', 'NIU 1 - 337', 'NIU 1 - 338 ']
-    dev_mask = self_explanations.df['TextID'].isin(text_list[:2])
-    test_mask = self_explanations.df['TextID'].isin(text_list[2:3])
-    train_mask = self_explanations.df['TextID'].isin(text_list[3:])
-
-    # old split
-    df_train = self_explanations.df[train_mask]
-    df_dev = self_explanations.df[dev_mask]
-    df_test = self_explanations.df[test_mask]
 
     df_train, df_dev, df_test = get_new_train_test_split(self_explanations.df)
     # random deterministic split
@@ -80,15 +69,31 @@ if __name__ == '__main__':
     # df_test = self_explanations.df[self_explanations.df['ID'].isin(test_IDs)]
 
     # toggle 0 or 1 for using rb_features
-    rb_feats = 0
-    train_data_loader = create_data_loader(df_train, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=False)
-    val_data_loader = create_data_loader(df_test, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=False)
-    rb_feats = 0#train_data_loader.dataset.rb_feats.shape[1]
-    model = BERTMTL(num_tasks, PRE_TRAINED_MODEL_NAME, rb_feats=rb_feats)
+    train_data_loader = create_data_loader(df_train, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=True)
+    val_data_loader = create_data_loader(df_test, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=True)
+    rb_feats = train_data_loader.dataset.rb_feats.shape[1]
+    task_weights = []
+    for task in range(num_tasks):
+        df_aux = df_train[df_train[SelfExplanations.MTL_TARGETS[task]] < 9]
+        values = df_aux[SelfExplanations.MTL_TARGETS[task]].value_counts()
+        total = len(df_aux[SelfExplanations.MTL_TARGETS[task]]) * 1.0
+        task_weights.append(torch.Tensor([total / values[i] if i in values else 0 for i in range(SelfExplanations.MTL_CLASS_DICT[SelfExplanations.MTL_TARGETS[task]])]))
+
+    model = BERTMTL(num_tasks, PRE_TRAINED_MODEL_NAME, rb_feats=rb_feats, task_weights=task_weights, task_level_weights=task_level_weights)
 
     trainer = pl.Trainer(
         accelerator="auto",
         devices=1 if torch.cuda.is_available() else None,  # limiting got iPython runs
         # limit_train_batches=100,
-        max_epochs=50)
+        max_epochs=25)
     trainer.fit(model, train_dataloaders=train_data_loader, val_dataloaders=val_data_loader)
+
+if __name__ == '__main__':
+    print("=" * 33)
+    experiment([2, 2, 1, 5])
+    print("=" * 33)
+    experiment([1, 1, 1, 1])
+    print("=" * 33)
+    experiment([1, 1, 1, 3])
+    print("=" * 33)
+    experiment([1, 2, 1, 4])

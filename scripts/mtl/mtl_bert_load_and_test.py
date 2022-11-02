@@ -11,25 +11,25 @@ if __name__ == '__main__':
     predefined_version = ""
     PRE_TRAINED_MODEL_NAME = 'bert-base-cased'
     MAX_LEN_P = 80
-    BATCH_SIZE = 1
+    BATCH_SIZE = 16
     tokenizer = BertTokenizer.from_pretrained(PRE_TRAINED_MODEL_NAME)
 
     self_explanations = SelfExplanations()
     target_sent_enhanced = self_explanations.parse_se_from_csv(
-        "/home/bogdan/projects/PASTEL/data/results/results_paraphrase_se_aggregated_dataset_2.csv")
+        "../../data/results_paraphrase_se_aggregated_dataset_2.csv")
 
-    IDs = self_explanations.df['ID'].unique().tolist()
-    _, test_IDs = get_train_test_IDs(IDs)
-    df_test = self_explanations.df[self_explanations.df['ID'].isin(test_IDs)]
+    # IDs = self_explanations.df['ID'].unique().tolist()
+    # _, test_IDs = get_train_test_IDs(IDs)
+    # df_test = self_explanations.df[self_explanations.df['ID'].isin(test_IDs)]
     df_train, df_dev, df_test = get_new_train_test_split(self_explanations.df)
 
-    val_data_loader = create_data_loader(df_test, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=False)
-    train_data_loader = create_data_loader(df_train, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=False)
+    val_data_loader = create_data_loader(df_test, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=True)
+    train_data_loader = create_data_loader(df_train, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=True)
     model = BERTMTL(num_tasks, PRE_TRAINED_MODEL_NAME, rb_feats=0)#val_data_loader.dataset.rb_feats.shape[1])
-    model = model.load_from_checkpoint("/home/bogdan/projects/PASTEL/scripts/lightning_logs/version_16/checkpoints/epoch=49-step=5500.ckpt",
+    model = model.load_from_checkpoint("./lightning_logs/version_4/checkpoints/epoch=49-step=2600.ckpt",
                                        num_tasks=num_tasks,
                                        pretrained_bert_model=PRE_TRAINED_MODEL_NAME,
-                                       rb_feats=0)#val_data_loader.dataset.rb_feats.shape[1])
+                                       rb_feats=val_data_loader.dataset.rb_feats.shape[1])
     trainer = pl.Trainer(
 
         accelerator="auto",

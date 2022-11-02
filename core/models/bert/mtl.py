@@ -13,7 +13,7 @@ from torchmetrics import F1Score, Accuracy
 from core.data_processing.se_dataset import SelfExplanations
 
 class BERTMTL(pl.LightningModule):
-  def __init__(self, num_tasks, pretrained_bert_model, rb_feats=0):
+  def __init__(self, num_tasks, pretrained_bert_model, rb_feats=0, task_weights=None, task_level_weights=[]):
     super().__init__()
     self.bert = BertModel.from_pretrained(pretrained_bert_model, return_dict=False)
     self.drop = nn.Dropout(p=0.2)
@@ -21,10 +21,12 @@ class BERTMTL(pl.LightningModule):
     self.task_names = SelfExplanations.MTL_TARGETS[:num_tasks]
     task_classes = [SelfExplanations.MTL_CLASS_DICT[x] for x in self.task_names]
     self.num_tasks = num_tasks
+    self.task_level_weights = [1 for _ in range(self.num_tasks)] if len(task_level_weights) < self.num_tasks else task_level_weights
     self.iteration_stat_aggregator = OrderedDict()
     self.train_iter_counter = 0
     self.val_iter_counter = 0
-
+    self.task_weights = task_weights
+    self.loss_f = None
     self.rb_feats = rb_feats
     if self.rb_feats > 0:
       self.rb_feats_in = nn.Linear(self.rb_feats, 100)
@@ -67,14 +69,19 @@ class BERTMTL(pl.LightningModule):
       outputs = self(input_ids, attention_mask, rb_feats_data)
     else:
       outputs = self(input_ids, attention_mask)
-    loss_f = nn.CrossEntropyLoss()
+
+    if self.loss_f is None:
+      if self.task_weights is not None:
+        self.loss_f = [nn.CrossEntropyLoss(weight=self.task_weights[i].to(input_ids.device)) for i in range(self.num_tasks)]
+      else:
+        self.loss_f = [nn.CrossEntropyLoss() for _ in range(self.num_tasks)]
     partial_losses = [0 for _ in range(self.num_tasks)]
 
     transp_targets = targets.transpose(1, 0)
     for task_id in range(self.num_tasks):
       task_mask = transp_targets[task_id] != 9
-      partial_losses[task_id] += loss_f(outputs[task_id][task_mask], transp_targets[task_id][task_mask])
-    loss = sum(partial_losses)
+      partial_losses[task_id] += self.loss_f[task_id](outputs[task_id][task_mask], transp_targets[task_id][task_mask])
+    loss = sum([partial_losses[i] * self.task_level_weights[i] for i in range(len(partial_losses))])
 
     return loss, partial_losses, transp_targets, outputs
 
@@ -156,6 +163,9 @@ class BERTMTL(pl.LightningModule):
           self.log(key, self.iteration_stat_aggregator[key] / self.train_iter_counter)
       self.reset_iteration_stat_aggregator()
       self.log(f"acc_{self.task_names[i]}", acc(filtered_outputs, filtered_targets))
+
+      print(confusion_matrix(filtered_targets, filtered_outputs))
+      print(classification_report(filtered_targets, filtered_outputs))
 
   def configure_optimizers(self):
     no_decay = ['bias', 'LayerNorm.weight']

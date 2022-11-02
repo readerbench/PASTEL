@@ -41,17 +41,19 @@ class SelfExplanations:
   EL_LIFE_EVENT = "lifeevent"
   OVERALL = "overall"
 
-  MTL_TARGETS = [PARAPHRASE, PR_LEXICAL_CHANGE, PR_SYNTACTIC_CHANGE, BRIDGING,
-                BR_CONTRIBUTION, ELABORATION, OVERALL]
+  # MTL_TARGETS = [PARAPHRASE, PR_LEXICAL_CHANGE, PR_SYNTACTIC_CHANGE, BRIDGING,
+  #               BR_CONTRIBUTION, ELABORATION, OVERALL]
+  MTL_TARGETS = [PARAPHRASE, BRIDGING, ELABORATION, OVERALL]
+  # MTL_TARGETS = [ OVERALL]
 
   MTL_CLASS_DICT = {
     PARAPHRASE: 3,
-    PR_LEXICAL_CHANGE: 2,
-    PR_SYNTACTIC_CHANGE: 2,
+    # PR_LEXICAL_CHANGE: 2,
+    # PR_SYNTACTIC_CHANGE: 2,
     BRIDGING: 4,
-    BR_CONTRIBUTION: 3,
+    # BR_CONTRIBUTION: 3,
     ELABORATION: 3,
-    OVERALL: 4
+    OVERALL: 3
   }
 
   def parse_se_scoring_from_csv(self, path_to_csv_file: str):
@@ -100,9 +102,12 @@ class SEDataset(Dataset):
     self.targets = targets
     self.tokenizer = tokenizer
     self.max_len = max_len
-    # rb_feats[rb_feats == 'None'] = 0
-    # rb_feats[rb_feats == 'True'] = 1
-    self.rb_feats = rb_feats.astype(float) if rb_feats is not None else None
+    if rb_feats is not None:
+      rb_feats[rb_feats == 'None'] = 0
+      rb_feats[rb_feats == 'True'] = 1
+      self.rb_feats = rb_feats.astype(float)
+    else:
+      self.rb_feats = None
 
     self.targets[self.targets == 'BLANK '] = 9
     self.targets[self.targets == 'BLANK'] = 9
