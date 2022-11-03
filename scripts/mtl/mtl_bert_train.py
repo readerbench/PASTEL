@@ -1,7 +1,7 @@
 import os.path
 
 import pytorch_lightning as pl
-from transformers import BertTokenizer
+from transformers import BertTokenizer, RobertaTokenizer
 import torch
 import transformers
 from core.models.bert.mtl import BERTMTL
@@ -44,15 +44,17 @@ def get_new_train_test_split(df):
     df['EntryType'] = df.apply(lambda x: map_train_test(x), axis=1)
     df = df[(df[SelfExplanations.OVERALL] > 0) & (df[SelfExplanations.OVERALL] < 9)]
     df[SelfExplanations.OVERALL] -= 1
-    return df[df['EntryType'] == 'train'], df[df['EntryType'] == 'dev'], df[df['EntryType'] == 'test']
+    return df[(df['EntryType'] == 'train') | (df['EntryType'] == 'dev')], df[df['EntryType'] == 'dev'], df[df['EntryType'] == 'test']
 
-def experiment(task_level_weights=[]):
+def experiment(task_level_weights=[], bert_model="bert-base-cased"):
     num_tasks = 4
     predefined_version = ""
-    PRE_TRAINED_MODEL_NAME = 'bert-base-cased'
     MAX_LEN_P = 80
     BATCH_SIZE = 128
-    tokenizer = BertTokenizer.from_pretrained(PRE_TRAINED_MODEL_NAME)
+    if "roberta" in bert_model:
+        tokenizer = RobertaTokenizer.from_pretrained(bert_model)
+    else:
+        tokenizer = BertTokenizer.from_pretrained(bert_model)
 
     self_explanations = SelfExplanations()
     # target_sent_enhanced = self_explanations.parse_se_from_csv(
@@ -79,7 +81,7 @@ def experiment(task_level_weights=[]):
         total = len(df_aux[SelfExplanations.MTL_TARGETS[task]]) * 1.0
         task_weights.append(torch.Tensor([total / values[i] if i in values else 0 for i in range(SelfExplanations.MTL_CLASS_DICT[SelfExplanations.MTL_TARGETS[task]])]))
 
-    model = BERTMTL(num_tasks, PRE_TRAINED_MODEL_NAME, rb_feats=rb_feats, task_weights=task_weights, task_level_weights=task_level_weights)
+    model = BERTMTL(num_tasks, bert_model, rb_feats=rb_feats, task_weights=task_weights, task_level_weights=task_level_weights)
 
     trainer = pl.Trainer(
         accelerator="auto",
@@ -90,10 +92,10 @@ def experiment(task_level_weights=[]):
 
 if __name__ == '__main__':
     print("=" * 33)
-    experiment([2, 2, 1, 5])
+    experiment([2, 2, 1, 5], bert_model="roberta-base", lr=)
     print("=" * 33)
-    experiment([1, 1, 1, 1])
+    # experiment([2, 2, 1, 5], bert_model="bert-base-cased")
     print("=" * 33)
-    experiment([1, 1, 1, 3])
+    # experiment([1, 1, 1, 3])
     print("=" * 33)
-    experiment([1, 2, 1, 4])
+    # experiment([1, 2, 1, 4])

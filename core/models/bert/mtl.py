@@ -5,7 +5,7 @@ import torch.nn as nn
 import pytorch_lightning as pl
 from sklearn.metrics import confusion_matrix, f1_score, classification_report
 from torch import optim
-from transformers import BertModel
+from transformers import BertModel, RobertaModel
 from torch.nn import functional as F
 from torch.nn import ModuleList
 from torchmetrics import F1Score, Accuracy
@@ -13,9 +13,14 @@ from torchmetrics import F1Score, Accuracy
 from core.data_processing.se_dataset import SelfExplanations
 
 class BERTMTL(pl.LightningModule):
-  def __init__(self, num_tasks, pretrained_bert_model, rb_feats=0, task_weights=None, task_level_weights=[]):
+  def __init__(self, num_tasks, pretrained_bert_model, rb_feats=0, task_weights=None, task_level_weights=[], lr=1e-3):
     super().__init__()
-    self.bert = BertModel.from_pretrained(pretrained_bert_model, return_dict=False)
+    if "roberta" in pretrained_bert_model:
+      print("Training RoBERTa")
+      self.bert = RobertaModel.from_pretrained(pretrained_bert_model, return_dict=False)
+    else:
+      print("Training BERT")
+      self.bert = BertModel.from_pretrained(pretrained_bert_model, return_dict=False)
     self.drop = nn.Dropout(p=0.2)
     self.tmp1 = nn.Linear(self.bert.config.hidden_size, 100)
     self.task_names = SelfExplanations.MTL_TARGETS[:num_tasks]
@@ -27,6 +32,7 @@ class BERTMTL(pl.LightningModule):
     self.val_iter_counter = 0
     self.task_weights = task_weights
     self.loss_f = None
+    self.lr = lr
     self.rb_feats = rb_feats
     if self.rb_feats > 0:
       self.rb_feats_in = nn.Linear(self.rb_feats, 100)
@@ -186,7 +192,7 @@ class BERTMTL(pl.LightningModule):
       {'params': [p for n, p in self.named_parameters() if any(nd in n for nd in no_decay) and n.find("bert") == -1],
        'weight_decay': 0.0}
     ]
-    optimizer = optim.AdamW(optimizer_grouped_parameters, lr=1e-3)
+    optimizer = optim.AdamW(optimizer_grouped_parameters, lr=self.lr)
 
     # optimizer = optim.Adam(self.parameters(), lr=1e-3)
     return optimizer
