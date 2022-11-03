@@ -49,12 +49,13 @@ class BERTMTL(pl.LightningModule):
       input_ids=input_ids,
       attention_mask=attention_mask
     )
-    x = self.drop(pooled_output)
-    x = F.tanh(self.tmp1(x))
-    
+
+    x = F.tanh(self.tmp1(pooled_output))
+    x = self.drop(x)
+
     if self.rb_feats > 0:
       feats = F.tanh(self.rb_feats_in(rb_feats_data))
-      x = F.tanh(torch.cat([feats, x], dim=1))
+      x = torch.cat([feats, x], dim=1)
 
     x = [F.softmax(f(x)) for f in self.out]
 
