@@ -5,7 +5,7 @@ import torch.nn as nn
 import pytorch_lightning as pl
 from sklearn.metrics import confusion_matrix, f1_score, classification_report
 from torch import optim
-from transformers import BertModel, RobertaModel
+from transformers import BertModel, RobertaModel, get_linear_schedule_with_warmup
 from torch.nn import functional as F
 from torch.nn import ModuleList
 from torchmetrics import F1Score, Accuracy
@@ -13,19 +13,19 @@ from torchmetrics import F1Score, Accuracy
 from core.data_processing.se_dataset import SelfExplanations
 
 class BERTMTL(pl.LightningModule):
-  def __init__(self, num_tasks, pretrained_bert_model, rb_feats=0, task_weights=None, task_level_weights=[], lr=1e-3):
+  def __init__(self, task_names, pretrained_bert_model, rb_feats=0, task_weights=None, task_level_weights=[], lr=1e-3, num_epochs=15):
     super().__init__()
     if "roberta" in pretrained_bert_model:
-      print("Training RoBERTa")
+      print(f"Training RoBERTa lr={lr}")
       self.bert = RobertaModel.from_pretrained(pretrained_bert_model, return_dict=False)
     else:
-      print("Training BERT")
+      print(f"Training BERT lr={lr}")
       self.bert = BertModel.from_pretrained(pretrained_bert_model, return_dict=False)
     self.drop = nn.Dropout(p=0.2)
     self.tmp1 = nn.Linear(self.bert.config.hidden_size, 100)
-    self.task_names = SelfExplanations.MTL_TARGETS[:num_tasks]
+    self.task_names = task_names
     task_classes = [SelfExplanations.MTL_CLASS_DICT[x] for x in self.task_names]
-    self.num_tasks = num_tasks
+    self.num_tasks = len(task_names)
     self.task_level_weights = [1 for _ in range(self.num_tasks)] if len(task_level_weights) < self.num_tasks else task_level_weights
     self.iteration_stat_aggregator = OrderedDict()
     self.train_iter_counter = 0
@@ -33,12 +33,13 @@ class BERTMTL(pl.LightningModule):
     self.task_weights = task_weights
     self.loss_f = None
     self.lr = lr
+    self.num_epochs = num_epochs
     self.rb_feats = rb_feats
     if self.rb_feats > 0:
       self.rb_feats_in = nn.Linear(self.rb_feats, 100)
-      self.out = ModuleList([nn.Linear(200, task_classes[i]) for i in range(num_tasks)])
+      self.out = ModuleList([nn.Linear(200, task_classes[i]) for i in range(self.num_tasks)])
     else:
-      self.out = ModuleList([nn.Linear(100, task_classes[i]) for i in range(num_tasks)])
+      self.out = ModuleList([nn.Linear(100, task_classes[i]) for i in range(self.num_tasks)])
     self.reset_iteration_stat_aggregator()
 
   def reset_iteration_stat_aggregator(self):
@@ -170,7 +171,8 @@ class BERTMTL(pl.LightningModule):
           self.log(key, self.iteration_stat_aggregator[key] / self.train_iter_counter)
       self.reset_iteration_stat_aggregator()
       self.log(f"acc_{self.task_names[i]}", acc(filtered_outputs, filtered_targets))
-
+      self.log("LR", self.scheduler.get_lr()[0])
+      print("LR", self.scheduler.get_lr())
       print(confusion_matrix(filtered_targets, filtered_outputs))
       print(classification_report(filtered_targets, filtered_outputs))
 
@@ -193,6 +195,13 @@ class BERTMTL(pl.LightningModule):
        'weight_decay': 0.0}
     ]
     optimizer = optim.AdamW(optimizer_grouped_parameters, lr=self.lr)
+    self.scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=self.num_epochs//5, num_training_steps=self.num_epochs)
 
     # optimizer = optim.Adam(self.parameters(), lr=1e-3)
-    return optimizer
+    return {
+            'optimizer': optimizer,
+            'lr_scheduler': {
+                'scheduler': self.scheduler,
+                'interval': 'epoch'
+                }
+            }

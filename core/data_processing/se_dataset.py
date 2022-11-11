@@ -146,8 +146,11 @@ class SEDataset(Dataset):
       'item': item
     }
 
-def create_data_loader(df, tokenizer, max_len, batch_size, num_tasks, use_rb_feats=False):
-  targets = SelfExplanations.MTL_TARGETS[:num_tasks]
+def create_data_loader(df, tokenizer, max_len, batch_size, num_tasks, use_rb_feats=False, task_name=None):
+  if num_tasks == 1:
+    targets = [task_name]
+  else:
+    targets = SelfExplanations.MTL_TARGETS[:num_tasks]
   feats = df[df.columns[114:-1]].to_numpy() if use_rb_feats else None
 
   ds = SEDataset(
