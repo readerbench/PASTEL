@@ -9,8 +9,6 @@ from rb import Lang
 from rb.core.document import Document
 from rb.similarity.wordnet import leacock_chodorow_similarity
 
-from svm.zero_tags import ZeroTags
-
 
 class ZeroTags(Enum):
     FROZEN_EXPRESSIONS = "Frozen expressions are more than 75% of the entire SE"
@@ -44,6 +42,8 @@ class ZeroRules:
     def filter_and_tag_zeros(self, se: str, target: str, previous: str):
         tags = []
         clean_se = self.remove_frozen_expressions(se)
+        clean_se =  re.sub(' +', ' ', clean_se)
+        print(f">{clean_se}<")
         se_clean_doc = Document(Lang.EN, clean_se)
         target_doc = Document(Lang.EN, target)
         previous_doc = None
@@ -71,7 +71,7 @@ class ZeroRules:
             return ZeroTags.FROZEN_EXPRESSIONS
 
     def read_frozen_expressions(self):
-        frozen_expr_file = open('frozen_expressions.txt', 'r')
+        frozen_expr_file = open('/home/bnicula/snap/PASTEL/data/frozen_expressions.txt', 'r')
         lines = frozen_expr_file.readlines()
         regex_list = []
         for line in lines:

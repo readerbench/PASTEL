@@ -29,20 +29,26 @@ def get_train_test_IDs(IDs):
     return train_IDs, test_IDs
 
 def map_train_test(x):
-    if x['Dataset'] in ['NIU 1', 'ASU 5']:
+    if x['Dataset'] in ['ASU 5']:
+        return 'test'
+    if x['Dataset'] == 'CRaK':
         return 'train'
-    if x['Dataset'] == 'NIU 3':
-        return 'dev'
     if x['Dataset'] == 'ASU 1':
-        if x['PrePost'] == 'post':
-            return 'train'
-        return 'dev'
-    if x['Dataset'] == 'ASU 4' and not str(x['ID']).startswith('ISTARTREF'):
+        print(x['PrePost'])
+        if x['PrePost'] == 'Post':
+            return 'dev'
         return 'train'
-    return 'test'
+    if x['Dataset'] == 'ASU 4':
+        print("ID", x['ID'])
+        if not str(x['ID']).startswith('ISTARTREF'):
+            return 'train'
+        else:
+            return 'dev'
+    return 'dump'
 
 def get_new_train_test_split(df):
     df['EntryType'] = df.apply(lambda x: map_train_test(x), axis=1)
+    print(df['EntryType'].describe())
     df = df[(df[SelfExplanations.OVERALL] > 0) & (df[SelfExplanations.OVERALL] < 9)]
     df[SelfExplanations.OVERALL] -= 1
     return df[(df['EntryType'] == 'train') | (df['EntryType'] == 'dev')], df[df['EntryType'] == 'dev'], df[df['EntryType'] == 'test']
@@ -69,6 +75,9 @@ def experiment(task_level_weights=[], bert_model="bert-base-cased", lr=1e-3, num
 
 
     df_train, df_dev, df_test = get_new_train_test_split(self_explanations.df)
+    print(f"len train {len(df_train)}")
+    print(f"len dev {len(df_dev)}")
+    print(f"len test {len(df_test)}")
     # random deterministic split
     # IDs = self_explanations.df['ID'].unique().tolist()
     # train_IDs, test_IDs = get_train_test_IDs(IDs)
@@ -115,6 +124,7 @@ if __name__ == '__main__':
     print("=" * 33)
     experiment([2, 2, 1, 5], bert_model="roberta-base", lr=2e-4, num_epochs=50, task_name="overall")
     print("=" * 33)
+    experiment([2, 2, 1, 5], bert_model="roberta-base", lr=2e-4, num_epochs=50)
     #experiment([2, 2, 1, 5], bert_model="roberta-base", lr=5e-4)
     print("=" * 33)
     #experiment([2, 2, 1, 5], bert_model="roberta-base", lr=8e-4)
