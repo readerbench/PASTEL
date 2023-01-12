@@ -7,6 +7,9 @@ from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 from os.path import exists
 
+from core.data_processing.filtering import ZeroRules
+
+
 def clear_text(text: str):
   return re.sub('[^a-zA-Z0-9 \n.]', '', str(text))
 
@@ -50,10 +53,10 @@ class SelfExplanations:
     PARAPHRASE: 3,
     # PR_LEXICAL_CHANGE: 2,
     # PR_SYNTACTIC_CHANGE: 2,
-    BRIDGING: 4,
+    BRIDGING: 3,
     # BR_CONTRIBUTION: 3,
-    ELABORATION: 3,
-    OVERALL: 3
+    ELABORATION: 2,
+    OVERALL: 4
   }
 
   def parse_se_scoring_from_csv(self, path_to_csv_file: str):
@@ -76,7 +79,6 @@ class SelfExplanations:
 
     return enhanced_dataset_file
 
-
   def parse_se_from_csv(self, path_to_csv_file: str):
     df = pandas.read_csv(path_to_csv_file, delimiter='\t', dtype={self.SENT_NO: "Int64"}).dropna(how='all')
     self.df = df
@@ -84,11 +86,13 @@ class SelfExplanations:
     self.df['Source'] = self.df['TargetSentence']
     for val in self.MTL_TARGETS:
 
-      self.df[val][self.df[val] == 'BLANK '] = 9
-      self.df[val][self.df[val] == 'BLANK'] = 9
-      self.df[val][self.df[val] == 'blANK'] = 9
+      self.df[val][self.df[val] == 'BLANK '] = 0
+      self.df[val][self.df[val] == 'BLANK'] = 0
+      self.df[val][self.df[val] == 'blANK'] = 0
+      self.df[val][self.df[val] == 9] = 0
       self.df[val] = self.df[val].astype(int)
 
+      # self.df[val] += 1
       # print(val, self.df[val].unique())
       # mask = self.df[val] != 9
       # print(self.df[val][mask].describe())
@@ -96,12 +100,13 @@ class SelfExplanations:
 
 
 class SEDataset(Dataset):
-  def __init__(self, source, production, targets, tokenizer, max_len, rb_feats=None):
+  def __init__(self, source, production, targets, tokenizer, max_len, rb_feats=None, filter_data=None):
     self.source = source
     self.production = production
     self.targets = targets
     self.tokenizer = tokenizer
     self.max_len = max_len
+    self.filter_data = filter_data
     if rb_feats is not None:
       rb_feats[rb_feats == 'None'] = 0
       rb_feats[rb_feats == 'True'] = 1
@@ -109,10 +114,16 @@ class SEDataset(Dataset):
     else:
       self.rb_feats = None
 
-    self.targets[self.targets == 'BLANK '] = 9
-    self.targets[self.targets == 'BLANK'] = 9
-    self.targets[self.targets == 'blANK'] = 9
+
+    # self.targets[self.targets == 'BLANK '] = -1
+    # self.targets[self.targets == 'BLANK'] = -1
+    # self.targets[self.targets == 'blANK'] = -1
+    # self.targets[self.targets == 9] = -1
+    # print("%%" * 33)
+    # print(self.targets[self.targets == 9])
     self.targets = np.vectorize(int)(self.targets)
+
+    # self.targets += 1
 
   def __len__(self):
     return len(self.source)
@@ -122,6 +133,7 @@ class SEDataset(Dataset):
     production = str(self.production[item])
     target = self.targets[item]
     rb_feats = self.rb_feats[item] if self.rb_feats is not None else []
+    filter_data = self.filter_data[item] if self.filter_data is not None else []
 
     encoding = self.tokenizer.encode_plus(
       text=source,
@@ -140,23 +152,40 @@ class SEDataset(Dataset):
       'text_s': source,
       'text_p': production,
       'rb_feats': rb_feats,
+      'filter_data': filter_data,
       'input_ids': encoding['input_ids'].flatten(),
       'attention_mask': encoding['attention_mask'].flatten(),
       'targets': torch.LongTensor(target),
       'item': item
     }
 
-def create_data_loader(df, tokenizer, max_len, batch_size, num_tasks, use_rb_feats=False, task_name=None):
+def create_data_loader(df, tokenizer, max_len, batch_size, num_tasks, use_rb_feats=False, use_filtering=False, task_name=None):
   if num_tasks == 1:
     targets = [task_name]
   else:
     targets = SelfExplanations.MTL_TARGETS[:num_tasks]
-  feats = df[df.columns[114:-1]].to_numpy() if use_rb_feats else None
+  # print("$$$", df[SelfExplanations.ELABORATION].unique())
+  # print("$$$", df[SelfExplanations.BRIDGING].unique())
+  df.loc[df[SelfExplanations.ELABORATION] == 2, SelfExplanations.ELABORATION] = 1
+  df.loc[df[SelfExplanations.BRIDGING] == 3, SelfExplanations.BRIDGING] = 2
+  # print("$$$", df[SelfExplanations.ELABORATION].unique())
+  # print("$$$", df[SelfExplanations.BRIDGING].unique())
 
+  feats = df[df.columns[114:-1]].to_numpy() if use_rb_feats else None
+  filter_data = None
+  if use_filtering:
+    data = []
+    zR = ZeroRules()
+    for index, row in df.iloc[0:].iterrows():
+      data.append(zR.get_filter_scores(row["Production"], row["Source"], ""))
+      print(index, data[-1])
+
+    filter_data = np.array(data)
   ds = SEDataset(
     source=df['Source'].to_numpy(),
     production=df['Production'].to_numpy(),
     rb_feats=feats,
+    filter_data=filter_data,
     targets=np.array([df[t] for t in targets]).transpose(),
     tokenizer=tokenizer,
     max_len=max_len

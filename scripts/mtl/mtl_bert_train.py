@@ -1,5 +1,6 @@
 import os.path
 
+import pandas as pd
 import pytorch_lightning as pl
 from transformers import BertTokenizer, RobertaTokenizer
 import torch
@@ -34,12 +35,10 @@ def map_train_test(x):
     if x['Dataset'] == 'CRaK':
         return 'train'
     if x['Dataset'] == 'ASU 1':
-        print(x['PrePost'])
         if x['PrePost'] == 'Post':
             return 'dev'
         return 'train'
     if x['Dataset'] == 'ASU 4':
-        print("ID", x['ID'])
         if not str(x['ID']).startswith('ISTARTREF'):
             return 'train'
         else:
@@ -49,8 +48,8 @@ def map_train_test(x):
 def get_new_train_test_split(df):
     df['EntryType'] = df.apply(lambda x: map_train_test(x), axis=1)
     print(df['EntryType'].describe())
-    df = df[(df[SelfExplanations.OVERALL] > 0) & (df[SelfExplanations.OVERALL] < 9)]
-    df[SelfExplanations.OVERALL] -= 1
+    # df = df[(df[SelfExplanations.OVERALL] > 0) & (df[SelfExplanations.OVERALL] < 9)]
+    # df[SelfExplanations.OVERALL] -= 1
     return df[(df['EntryType'] == 'train') | (df['EntryType'] == 'dev')], df[df['EntryType'] == 'dev'], df[df['EntryType'] == 'test']
     # return df[(df['EntryType'] == 'train')], df[df['EntryType'] == 'dev'], df[df['EntryType'] == 'test']
 
@@ -78,6 +77,13 @@ def experiment(task_level_weights=[], bert_model="bert-base-cased", lr=1e-3, num
     print(f"len train {len(df_train)}")
     print(f"len dev {len(df_dev)}")
     print(f"len test {len(df_test)}")
+    total_df = pd.concat([df_train, df_test])
+    class_rebalancing_dict = {}
+    for task in self_explanations.MTL_TARGETS:
+        a = total_df[task].value_counts()
+        class_rebalancing_dict[task] = []
+
+    k = 2
     # random deterministic split
     # IDs = self_explanations.df['ID'].unique().tolist()
     # train_IDs, test_IDs = get_train_test_IDs(IDs)
@@ -85,8 +91,8 @@ def experiment(task_level_weights=[], bert_model="bert-base-cased", lr=1e-3, num
     # df_test = self_explanations.df[self_explanations.df['ID'].isin(test_IDs)]
 
     # toggle 0 or 1 for using rb_features
-    train_data_loader = create_data_loader(df_train, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=True, task_name=task_name)
-    val_data_loader = create_data_loader(df_test, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=True, task_name=task_name)
+    train_data_loader = create_data_loader(df_train, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=True, task_name=task_name, use_filtering=True)
+    val_data_loader = create_data_loader(df_test, tokenizer, MAX_LEN_P, BATCH_SIZE, num_tasks, use_rb_feats=True, task_name=task_name, use_filtering=True)
     rb_feats = train_data_loader.dataset.rb_feats.shape[1]
     task_weights = []
     if num_tasks > 1:
@@ -103,8 +109,8 @@ def experiment(task_level_weights=[], bert_model="bert-base-cased", lr=1e-3, num
         total = len(df_aux[task_name]) * 1.0
         task_weights.append(torch.Tensor([total / values[i] if i in values else 0 for i in range(SelfExplanations.MTL_CLASS_DICT[task_name])]))
 
-    checkpoint_callback = ModelCheckpoint(save_top_k=3, monitor="val_loss")
-    model = BERTMTL(task_names, bert_model, rb_feats=rb_feats, task_weights=task_weights, task_level_weights=task_level_weights, lr=lr, num_epochs=num_epochs)
+    checkpoint_callback = ModelCheckpoint(save_top_k=3, monitor="test_loss")
+    model = BERTMTL(task_names, bert_model, rb_feats=rb_feats, task_weights=task_weights, task_level_weights=task_level_weights, lr=lr, num_epochs=num_epochs, use_filtering=True)
 
     trainer = pl.Trainer(
         accelerator="auto",
@@ -116,15 +122,15 @@ def experiment(task_level_weights=[], bert_model="bert-base-cased", lr=1e-3, num
 
 if __name__ == '__main__':
     print("=" * 33)
-    experiment([2, 2, 1, 5], bert_model="roberta-base", lr=2e-4, num_epochs=50, task_name="paraphrasepresence")
+    experiment([2, 2, 1, 5], bert_model="roberta-base", lr=2e-4, num_epochs=25, task_name="paraphrasepresence")
     print("=" * 33)
-    experiment([2, 2, 1, 5], bert_model="roberta-base", lr=2e-4, num_epochs=50, task_name="bridgepresence")
+    # experiment([2, 2, 1, 5], bert_model="roberta-base", lr=2e-4, num_epochs=25, task_name="bridgepresence")
     print("=" * 33)
-    experiment([2, 2, 1, 5], bert_model="roberta-base", lr=2e-4, num_epochs=50, task_name="elaborationpresence")
+    # experiment([2, 2, 1, 5], bert_model="roberta-base", lr=2e-4, num_epochs=25, task_name="elaborationpresence")
     print("=" * 33)
-    experiment([2, 2, 1, 5], bert_model="roberta-base", lr=2e-4, num_epochs=50, task_name="overall")
+    # experiment([2, 2, 1, 5], bert_model="roberta-base", lr=2e-4, num_epochs=25, task_name="overall")
     print("=" * 33)
-    experiment([2, 2, 1, 5], bert_model="roberta-base", lr=2e-4, num_epochs=50)
+    # experiment([2, 2, 1, 5], bert_model="roberta-base", lr=2e-4, num_epochs=25)
     #experiment([2, 2, 1, 5], bert_model="roberta-base", lr=5e-4)
     print("=" * 33)
     #experiment([2, 2, 1, 5], bert_model="roberta-base", lr=8e-4)

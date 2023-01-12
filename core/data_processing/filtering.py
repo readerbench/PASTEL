@@ -43,24 +43,28 @@ class ZeroRules:
         return result_df
 
     def get_filter_scores(self, se: str, target: str, previous: str):
-        clean_se = self.remove_frozen_expressions(se)
-        clean_se =  re.sub(' +', ' ', clean_se)
+        # return [1.0, 1, 25, 1, 49, 1, 1.0, 1]
+        try:
+            clean_se = self.remove_frozen_expressions(se)
+            clean_se = re.sub(' +', ' ', clean_se)
 
-        se_clean_doc = Document(Lang.EN, clean_se)
-        target_doc = Document(Lang.EN, target)
-        previous_doc = Document(Lang.EN, previous) if previous is not None else None
+            se_clean_doc = Document(Lang.EN, clean_se)
+            target_doc = Document(Lang.EN, target)
+            previous_doc = Document(Lang.EN, previous) if previous is not None else None
 
-        fe_score = self.frozen_expression_score(se, clean_se)
-        irr_score = self.irrelevant_score(se_clean_doc, se, target, previous)
-        sh_score = self.short_score(se_clean_doc)
-        num_ngrams, num_copied_ngrams = self.copy_paste_ngram_score(se_clean_doc, [target_doc, previous_doc])
-        copied_score = 1 - num_copied_ngrams / num_ngrams if num_ngrams > 0 else 0 # 0 if copied, 1 if 100% original
-        return [
-            fe_score, self.flag(fe_score, ZeroRules.FE_THRESH),
-            irr_score, self.flag(irr_score, ZeroRules.IRR_THRESH),
-            sh_score, self.flag(sh_score, self.get_short_threshold(target_doc)),
-            copied_score, self.flag(copied_score, ZeroRules.COPY_THRESH)
-        ]
+            fe_score = self.frozen_expression_score(se, clean_se)
+            irr_score = self.irrelevant_score(se_clean_doc, se, target, previous)
+            sh_score = self.short_score(se_clean_doc)
+            num_ngrams, num_copied_ngrams = self.copy_paste_ngram_score(se_clean_doc, [target_doc, previous_doc])
+            copied_score = 1 - num_copied_ngrams / num_ngrams if num_ngrams > 0 else 0 # 0 if copied, 1 if 100% original
+            return [
+                fe_score, self.flag(fe_score, ZeroRules.FE_THRESH),
+                irr_score, self.flag(irr_score, ZeroRules.IRR_THRESH),
+                sh_score, self.flag(sh_score, self.get_short_threshold(target_doc)),
+                copied_score, self.flag(copied_score, ZeroRules.COPY_THRESH)
+            ]
+        except:
+            return [0] * 8
 
     def flag(self, x, thresh):
         return 1 if x > thresh else 0

@@ -13,7 +13,8 @@ from torchmetrics import F1Score, Accuracy
 from core.data_processing.se_dataset import SelfExplanations
 
 class BERTMTL(pl.LightningModule):
-  def __init__(self, task_names, pretrained_bert_model, rb_feats=0, task_weights=None, task_level_weights=[], lr=1e-3, num_epochs=15):
+  def __init__(self, task_names, pretrained_bert_model, rb_feats=0, task_weights=None, task_level_weights=[], lr=1e-3,
+               num_epochs=15, use_filtering=False):
     super().__init__()
     if "roberta" in pretrained_bert_model:
       print(f"Training RoBERTa lr={lr}")
@@ -35,6 +36,9 @@ class BERTMTL(pl.LightningModule):
     self.lr = lr
     self.num_epochs = num_epochs
     self.rb_feats = rb_feats
+    self.use_filtering = use_filtering
+    if use_filtering:
+      self.filtering = nn.Linear(8, 200)
     if self.rb_feats > 0:
       self.rb_feats_in = nn.Linear(self.rb_feats, 100)
       self.out = ModuleList([nn.Linear(200, task_classes[i]) for i in range(self.num_tasks)])
@@ -44,14 +48,14 @@ class BERTMTL(pl.LightningModule):
 
   def reset_iteration_stat_aggregator(self):
     self.iteration_stat_aggregator[f"train_loss"] = 0
-    self.iteration_stat_aggregator[f"val_loss"] = 0
+    self.iteration_stat_aggregator[f"test_loss"] = 0
     for key in self.task_names:
       self.iteration_stat_aggregator[f"{key}_train_loss"] = 0
-      self.iteration_stat_aggregator[f"{key}_val_loss"] = 0
+      self.iteration_stat_aggregator[f"{key}_test_loss"] = 0
     self.train_iter_counter = 0
     self.val_iter_counter = 0
 
-  def forward(self, input_ids, attention_mask, rb_feats_data=None):
+  def forward(self, input_ids, attention_mask, rb_feats_data=None, filter_data=None):
     _, pooled_output = self.bert(
       input_ids=input_ids,
       attention_mask=attention_mask
@@ -63,6 +67,8 @@ class BERTMTL(pl.LightningModule):
     if self.rb_feats > 0:
       feats = F.tanh(self.rb_feats_in(rb_feats_data))
       x = torch.cat([feats, x], dim=1)
+    if self.filtering:
+      x = x * F.sigmoid(self.filtering(filter_data))
 
     x = [F.softmax(f(x)) for f in self.out]
 
@@ -72,11 +78,19 @@ class BERTMTL(pl.LightningModule):
     input_ids = batch['input_ids']
     attention_mask = batch['attention_mask']
     targets = batch['targets']
-    if self.rb_feats > 0:
-      rb_feats_data = batch['rb_feats'].to(torch.float32)
-      outputs = self(input_ids, attention_mask, rb_feats_data)
+    if self.filtering:
+      filter_data = batch['filter_data'].to(torch.float32)
+      if self.rb_feats > 0:
+        rb_feats_data = batch['rb_feats'].to(torch.float32)
+        outputs = self(input_ids, attention_mask, rb_feats_data, filter_data)
+      else:
+        outputs = self(input_ids, attention_mask, filter_data=filter_data)
     else:
-      outputs = self(input_ids, attention_mask)
+      if self.rb_feats > 0:
+        rb_feats_data = batch['rb_feats'].to(torch.float32)
+        outputs = self(input_ids, attention_mask, rb_feats_data)
+      else:
+        outputs = self(input_ids, attention_mask)
 
     if self.loss_f is None:
       if self.task_weights is not None:
@@ -110,9 +124,9 @@ class BERTMTL(pl.LightningModule):
     out_targets = transp_targets.cpu()
     out_outputs = torch.Tensor([[y.argmax() for y in x] for x in outputs]).cpu()
     # Logging to TensorBoard by default
-    self.iteration_stat_aggregator["val_loss"] += loss
+    self.iteration_stat_aggregator["test_loss"] += loss
     for i, task in enumerate(self.task_names):
-      self.iteration_stat_aggregator[f"{task}_val_loss"] += partial_losses[i]
+      self.iteration_stat_aggregator[f"{task}_test_loss"] += partial_losses[i]
     self.val_iter_counter += 1
     return (out_targets, out_outputs)
   def test_step(self, batch, batch_idx):
@@ -165,7 +179,7 @@ class BERTMTL(pl.LightningModule):
       acc = Accuracy()
 
       for key in self.iteration_stat_aggregator:
-        if key.endswith("val_loss") and self.val_iter_counter > 0:
+        if key.endswith("test_loss") and self.val_iter_counter > 0:
           self.log(key, self.iteration_stat_aggregator[key] / self.val_iter_counter)
         elif self.train_iter_counter > 0:
           self.log(key, self.iteration_stat_aggregator[key] / self.train_iter_counter)
