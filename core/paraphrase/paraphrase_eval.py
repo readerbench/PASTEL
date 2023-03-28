@@ -7,7 +7,8 @@ from torch import nn
 from transformers import BertTokenizer
 from core.models.bert.classifier import BERTClassifier
 
-from core.models.bert.p_dataset import create_data_loader
+from core.models.bert.p_dataset import create_data_loader, encode_paraphrase_pair
+
 from core.paraphrase.paraphrase_bert import read_datasets
 
 
@@ -70,16 +71,13 @@ def validate_model_on_str_input(model_path, paraphrase_pairs_list):
     tokenizer = BertTokenizer.from_pretrained(PRE_TRAINED_MODEL_NAME)
     model = torch.load(model_path)
 
-    df_eval = pd.DataFrame(paraphrase_pairs_list, columns=['Source', 'Production'])
-    test_data_loader = create_data_loader(df_eval, tokenizer, MAX_LEN_P, 1, None)
-    for d in test_data_loader:
-        input_ids = d["input_ids"].to(device)
-        attention_mask = d["attention_mask"].to(device)
-        source = d["text_s"]
-        production = d["text_p"]
+    for (source, production) in paraphrase_pairs_list:
+        input_ids, att_mask = encode_paraphrase_pair(source, production, tokenizer, MAX_LEN_P)
+        input_ids = input_ids.reshape(1, -1).to(device)
+        attention_mask = att_mask.reshape(1, -1).to(device)
         outputs = model(input_ids=input_ids, attention_mask=attention_mask)
         _, preds = torch.max(outputs, dim=1)
-        print(f"source: {source[0]}\nparaphrase: {production[0]}\nassessment: {preds[0].item()}\n")
+        print(f"source: {source}\nparaphrase: {production}\nassessment: {preds[0].item()}\n")
 
 if __name__ == '__main__':
     examples = [

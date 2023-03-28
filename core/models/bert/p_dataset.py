@@ -17,29 +17,34 @@ class ParaphraseDataset(Dataset):
   def __getitem__(self, item):
     source = str(self.source[item])
     production = str(self.production[item])
-    encoding = self.tokenizer.encode_plus(
-      text=source,
-      text_pair=production,
-      truncation=True,
-      truncation_strategy="longest_first",
-      add_special_tokens=True,
-      max_length=self.max_len,
-      return_token_type_ids=False,
-      padding='max_length',
-      return_attention_mask=True,
-      return_tensors='pt',
-    )
 
+    input_ids, att_mask = encode_paraphrase_pair(source, production, self.tokenizer, self.max_len)
     result_dict = {
       'text_s': source,
       'text_p': production,
-      'input_ids': encoding['input_ids'].flatten(),
-      'attention_mask': encoding['attention_mask'].flatten(),
+      'input_ids': input_ids,
+      'attention_mask': att_mask,
       'item': item
     }
     if self.targets is not None:
       result_dict['targets'] = torch.tensor(self.targets[item], dtype=torch.long)
     return result_dict
+
+def encode_paraphrase_pair(source, production, tokenizer, max_len):
+  encoding = tokenizer.encode_plus(
+    text=source,
+    text_pair=production,
+    truncation=True,
+    truncation_strategy="longest_first",
+    add_special_tokens=True,
+    max_length=max_len,
+    return_token_type_ids=False,
+    padding='max_length',
+    return_attention_mask=True,
+    return_tensors='pt',
+  )
+
+  return encoding['input_ids'].flatten(), encoding['attention_mask'].flatten()
 
 def create_data_loader(df, tokenizer, max_len, batch_size, class_name):
   ds = ParaphraseDataset(
