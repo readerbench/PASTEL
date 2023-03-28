@@ -2,7 +2,7 @@
 
 The aim of this project is to present a set of models used for assessing paraphrase quality, as described in https://doi.org/10.3390/computers10120166.
 
-Installation:
+Install:
 - from this project's root run "pip install -r requirements.txt"
 - run "python -m spacy download en_core_web_lg"
 - (only for training) create a "data" folder in the root of the project; copy data to the "data" folder within this project
