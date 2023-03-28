@@ -4,5 +4,6 @@ numpy
 torch
 pandas
 tensorflow
+rbpy-rb
 keras
 sklearn

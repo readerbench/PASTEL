@@ -17,7 +17,6 @@ class ParaphraseDataset(Dataset):
   def __getitem__(self, item):
     source = str(self.source[item])
     production = str(self.production[item])
-    target = self.targets[item]
     encoding = self.tokenizer.encode_plus(
       text=source,
       text_pair=production,
@@ -26,25 +25,27 @@ class ParaphraseDataset(Dataset):
       add_special_tokens=True,
       max_length=self.max_len,
       return_token_type_ids=False,
-      pad_to_max_length=True,
+      padding='max_length',
       return_attention_mask=True,
       return_tensors='pt',
     )
 
-    return {
+    result_dict = {
       'text_s': source,
       'text_p': production,
       'input_ids': encoding['input_ids'].flatten(),
       'attention_mask': encoding['attention_mask'].flatten(),
-      'targets': torch.tensor(target, dtype=torch.long),
       'item': item
     }
+    if self.targets is not None:
+      result_dict['targets'] = torch.tensor(self.targets[item], dtype=torch.long)
+    return result_dict
 
 def create_data_loader(df, tokenizer, max_len, batch_size, class_name):
   ds = ParaphraseDataset(
     source=df["Source"].to_numpy(),
     production=df["Production"].to_numpy(),
-    targets=df[class_name].to_numpy(),
+    targets=df[class_name].to_numpy() if class_name is not None else None,
     tokenizer=tokenizer,
     max_len=max_len
   )

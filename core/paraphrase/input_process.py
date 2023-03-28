@@ -11,7 +11,7 @@ from core.utils.rcdoc import create_doc
 from core.utils.word_overlap import get_overlap_metrics, get_content_words, get_words, get_edit_distance_metrics, \
     get_pos_ngram_overlap_metrics
 
-DATA_FOLDER = "../../data/"
+DATA_FOLDER = "../../data/paraphrase/"
 RESULTS_FOLDER = "../../data/results/"
 
 
@@ -144,7 +144,7 @@ def write_dataset_info(f, dataset, doc):
 
 
 if __name__ == '__main__':
-    dataset_options = ["children", "adults", "msrp"]
+    dataset_options = ["children"]#, "adults", "msrp"]
 
     for dataset in dataset_options:
         dataset_name = dataset
